@@ -2,35 +2,38 @@ const jwt = require("jsonwebtoken");
 const { checkRecordExists } = require("../utils/sqlFunctions");
 
 const requiresAuth = async (req, res, next) => {
-  let token;
+  const authorizationHeader = req.headers.authorization;
 
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer")
-  ) {
-    try {
-      // Get token from header
-      token = req.headers.authorization.split(" ")[1];
+  if (!authorizationHeader || !authorizationHeader.startsWith("Bearer")) {
+    return res.status(401).json({ error: "Not authorized, no token" });
+  }
 
-      if (!token) {
-        res.status(401).json({ error: "Not authorized, no token" });
-        return;
-      }
+  try {
+    const token = authorizationHeader.split(" ")[1];
 
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      // Get user from the token
-      req.user = await checkRecordExists("users", "userId", decoded.userId);
-      delete req.user.password;
-
-      console.log(req.user);
-
-      next();
-    } catch (error) {
-      console.log(error);
-      res.status(401).json({ error: "Not authorized, no token" });
+    if (!token) {
+      return res.status(401).json({ error: "Not authorized, no token" });
     }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (!decoded || !decoded.userId) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    const user = await checkRecordExists("users", "userId", decoded.userId);
+
+    if (!user) {
+      return res.status(401).json({ error: "User not found" });
+    }
+
+    req.user = user;
+    delete req.user.password;
+
+    next();
+  } catch (error) {
+    console.error(error);
+    return res.status(401).json({ error: "Token verification failed" });
   }
 };
 

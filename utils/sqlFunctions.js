@@ -42,8 +42,26 @@ const insertRecord = (tableName, record) => {
   });
 };
 
+const updateRecord = (tableName, updates, column, value) => {
+  return new Promise((resolve, reject) => {
+    const columnValues = Object.keys(updates)
+      .map((column) => `${column} = ?`)
+      .join(", ");
+    const query = `UPDATE ${tableName} SET ${columnValues} WHERE ${column} = ?`;
+
+    pool.query(query, Object.values(updates).concat(value), (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
+
 module.exports = {
   createTable,
   checkRecordExists,
   insertRecord,
+  updateRecord,
 };

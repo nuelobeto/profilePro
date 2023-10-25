@@ -7,6 +7,7 @@ const {
   checkRecordExists,
   insertRecord,
 } = require("../utils/sqlFunctions");
+const profileSchema = require("../schemas/profileSchema");
 
 const generateAccessToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
@@ -27,14 +28,24 @@ const register = async (req, res) => {
     email,
     password: hashedPassword,
   };
+
+  const profile = {
+    profileId: uuidv4(),
+    userId: user.userId,
+    email: user.email,
+  };
+
   try {
     await createTable(userSchema);
+    await createTable(profileSchema);
+
     const userAlreadyExists = await checkRecordExists("users", "email", email);
     if (userAlreadyExists) {
       res.status(409).json({ error: "Email already exists" });
     } else {
-      await createTable(userSchema);
       await insertRecord("users", user);
+      await insertRecord("profiles", profile);
+
       res.status(201).json({ message: "user created successfully!" });
     }
   } catch (error) {
